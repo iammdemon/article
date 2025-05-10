@@ -19,7 +19,6 @@ const Demo = () => {
     const stored = JSON.parse(localStorage.getItem("articles"));
     if (stored) setAllArticles(stored);
 
-    // Load voices safely
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
       const englishVoices = voices.filter((v) => v.lang.startsWith("en"));
@@ -49,6 +48,13 @@ const Demo = () => {
     setCopied(url);
     navigator.clipboard.writeText(url);
     setTimeout(() => setCopied(""), 3000);
+  };
+
+  const handleDelete = (url) => {
+    const updatedArticles = allArticles.filter((item) => item.url !== url);
+    setAllArticles(updatedArticles);
+    localStorage.setItem("articles", JSON.stringify(updatedArticles));
+    if (article.url === url) setArticle({ url: "", summary: "" });
   };
 
   const handleDownloadPDF = () => {
@@ -123,8 +129,14 @@ const Demo = () => {
 
         <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
           {allArticles.slice().reverse().map((item, index) => (
-            <div key={index} onClick={() => setArticle(item)} className="link_card">
-              <div className="copy_btn" onClick={() => handleCopy(item.url)}>
+            <div key={index} className="link_card relative" onClick={() => setArticle(item)}>
+              <div
+                className="copy_btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCopy(item.url);
+                }}
+              >
                 <img
                   src={copied === item.url ? tick : copy}
                   alt="copy-icon"
@@ -134,6 +146,15 @@ const Demo = () => {
               <p className="flex-1 font-satoshi text-blue-700 font-medium text-sm truncate">
                 {item.url}
               </p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(item.url);
+                }}
+                className="absolute top-1 right-2 text-red-500 text-xl hover:text-red-700"
+              >
+                ×
+              </button>
             </div>
           ))}
         </div>
@@ -163,37 +184,54 @@ const Demo = () => {
               </div>
 
               <div className="flex flex-wrap gap-3 justify-center">
-                <button onClick={handleDownloadPDF} className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">
+                <button
+                  onClick={handleDownloadPDF}
+                  className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+                >
                   📄 Download as PDF
                 </button>
 
                 {!isSpeaking && (
-                  <button onClick={handleRead} className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700">
-                    🔊 Read Aloud
+                  <button
+                    onClick={handleRead}
+                    className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700"
+                  >
+                    🔊 Read Summary
                   </button>
                 )}
 
                 {isSpeaking && !isPaused && (
-                  <button onClick={handlePause} className="bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600">
+                  <button
+                    onClick={handlePause}
+                    className="bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600"
+                  >
                     ⏸️ Pause
                   </button>
                 )}
 
                 {isPaused && (
-                  <button onClick={handleResume} className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600">
+                  <button
+                    onClick={handleResume}
+                    className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
+                  >
                     ▶️ Resume
                   </button>
                 )}
 
                 {isSpeaking && (
-                  <button onClick={handleStop} className="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700">
+                  <button
+                    onClick={handleStop}
+                    className="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700"
+                  >
                     ⛔ Stop
                   </button>
                 )}
               </div>
 
               <div className="mt-4 w-full">
-                <label htmlFor="volume" className="text-gray-700">🔈 Volume: {Math.round(volume * 100)}%</label>
+                <label htmlFor="volume" className="text-gray-700">
+                  🔈 Volume: {Math.round(volume * 100)}%
+                </label>
                 <input
                   id="volume"
                   type="range"
