@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-
 import { copy, linkIcon, loader, tick } from "../assets";
 import { useLazyGetSummaryQuery } from "../services/article";
+import jsPDF from "jspdf"; // ✅ Import jsPDF
 
 const Demo = () => {
   const [article, setArticle] = useState({
@@ -11,15 +11,12 @@ const Demo = () => {
   const [allArticles, setAllArticles] = useState([]);
   const [copied, setCopied] = useState("");
 
-  // RTK lazy query
   const [getSummary, { error, isFetching }] = useLazyGetSummaryQuery();
 
-  // Load data from localStorage on mount
   useEffect(() => {
     const articlesFromLocalStorage = JSON.parse(
       localStorage.getItem("articles")
     );
-
     if (articlesFromLocalStorage) {
       setAllArticles(articlesFromLocalStorage);
     }
@@ -31,7 +28,6 @@ const Demo = () => {
     const existingArticle = allArticles.find(
       (item) => item.url === article.url
     );
-
     if (existingArticle) return setArticle(existingArticle);
 
     const { data } = await getSummary({ articleUrl: article.url });
@@ -39,14 +35,12 @@ const Demo = () => {
       const newArticle = { ...article, summary: data.summary };
       const updatedAllArticles = [newArticle, ...allArticles];
 
-      // update state and local storage
       setArticle(newArticle);
       setAllArticles(updatedAllArticles);
       localStorage.setItem("articles", JSON.stringify(updatedAllArticles));
     }
   };
 
-  // copy the url and toggle the icon for user feedback
   const handleCopy = (copyUrl) => {
     setCopied(copyUrl);
     navigator.clipboard.writeText(copyUrl);
@@ -57,6 +51,17 @@ const Demo = () => {
     if (e.keyCode === 13) {
       handleSubmit(e);
     }
+  };
+
+  // ✅ PDF Download Function
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(12);
+    doc.text("Article Summary", 10, 10);
+    doc.setFont("times", "normal");
+    const lines = doc.splitTextToSize(article.summary, 180); // wrap text
+    doc.text(lines, 10, 20);
+    doc.save("summary.pdf");
   };
 
   return (
@@ -80,11 +85,11 @@ const Demo = () => {
             onChange={(e) => setArticle({ ...article, url: e.target.value })}
             onKeyDown={handleKeyDown}
             required
-            className='url_input peer' // When you need to style an element based on the state of a sibling element, mark the sibling with the peer class, and use peer-* modifiers to style the target element
+            className='url_input peer'
           />
           <button
             type='submit'
-            className='submit_btn peer-focus:border-gray-700 peer-focus:text-gray-700 '
+            className='submit_btn peer-focus:border-gray-700 peer-focus:text-gray-700'
           >
             <p>↵</p>
           </button>
@@ -114,7 +119,7 @@ const Demo = () => {
       </div>
 
       {/* Display Result */}
-      <div className='my-10 max-w-full flex justify-center items-center'>
+      <div className='my-10 max-w-full flex flex-col justify-center items-center gap-4'>
         {isFetching ? (
           <img src={loader} alt='loader' className='w-20 h-20 object-contain' />
         ) : error ? (
@@ -127,16 +132,25 @@ const Demo = () => {
           </p>
         ) : (
           article.summary && (
-            <div className='flex flex-col gap-3'>
-              <h2 className='font-satoshi font-bold text-gray-600 text-xl'>
-                Article <span className='blue_gradient'>Summary</span>
-              </h2>
-              <div className='summary_box'>
-                <p className='font-inter font-medium text-sm text-gray-700'>
-                  {article.summary}
-                </p>
+            <>
+              <div className='flex flex-col gap-3'>
+                <h2 className='font-satoshi font-bold text-gray-600 text-xl'>
+                  Article <span className='blue_gradient'>Summary</span>
+                </h2>
+                <div className='summary_box'>
+                  <p className='font-inter font-medium text-sm text-gray-700'>
+                    {article.summary}
+                  </p>
+                </div>
               </div>
-            </div>
+              {/* ✅ PDF Download Button */}
+              <button
+                onClick={handleDownloadPDF}
+                className='bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition'
+              >
+                Download as PDF
+              </button>
+            </>
           )
         )}
       </div>
