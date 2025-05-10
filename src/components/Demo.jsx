@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { copy, linkIcon, loader, tick } from "../assets";
 import { useLazyGetSummaryQuery } from "../services/article";
 import jsPDF from "jspdf";
@@ -7,78 +7,80 @@ const Demo = () => {
   const [article, setArticle] = useState({ url: "", summary: "" });
   const [allArticles, setAllArticles] = useState([]);
   const [copied, setCopied] = useState("");
+  const [volume, setVolume] = useState(1);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [utterance, setUtterance] = useState(null);
+  const [voice, setVoice] = useState(null);
+  const utteranceRef = useRef(null);
 
   const [getSummary, { error, isFetching }] = useLazyGetSummaryQuery();
 
   useEffect(() => {
-    const articlesFromLocalStorage = JSON.parse(localStorage.getItem("articles"));
-    if (articlesFromLocalStorage) {
-      setAllArticles(articlesFromLocalStorage);
-    }
+    const stored = JSON.parse(localStorage.getItem("articles"));
+    if (stored) setAllArticles(stored);
+
+    // Load voices safely
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      const englishVoices = voices.filter((v) => v.lang.startsWith("en"));
+      if (englishVoices.length > 0) setVoice(englishVoices[0]);
+    };
+
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
   }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const existingArticle = allArticles.find((item) => item.url === article.url);
-    if (existingArticle) return setArticle(existingArticle);
+    const exists = allArticles.find((a) => a.url === article.url);
+    if (exists) return setArticle(exists);
 
     const { data } = await getSummary({ articleUrl: article.url });
     if (data?.summary) {
       const newArticle = { ...article, summary: data.summary };
-      const updatedAllArticles = [newArticle, ...allArticles];
+      const updated = [newArticle, ...allArticles];
       setArticle(newArticle);
-      setAllArticles(updatedAllArticles);
-      localStorage.setItem("articles", JSON.stringify(updatedAllArticles));
+      setAllArticles(updated);
+      localStorage.setItem("articles", JSON.stringify(updated));
     }
   };
 
-  const handleCopy = (copyUrl) => {
-    setCopied(copyUrl);
-    navigator.clipboard.writeText(copyUrl);
-    setTimeout(() => setCopied(false), 3000);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.keyCode === 13) {
-      handleSubmit(e);
-    }
+  const handleCopy = (url) => {
+    setCopied(url);
+    navigator.clipboard.writeText(url);
+    setTimeout(() => setCopied(""), 3000);
   };
 
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
     doc.setFontSize(14);
     doc.text("Article Summary", 10, 10);
-    doc.setFont("times", "normal");
     const lines = doc.splitTextToSize(article.summary, 180);
     doc.text(lines, 10, 20);
     doc.save("summary.pdf");
   };
 
-  // ✅ Text-to-Speech Controls
-  const handleReadAloud = () => {
-    if (article.summary) {
-      const newUtterance = new SpeechSynthesisUtterance(article.summary);
-      newUtterance.lang = "en-US";
-      newUtterance.rate = 1;
-      newUtterance.pitch = 1;
-
-      newUtterance.onstart = () => {
-        setIsSpeaking(true);
-        setIsPaused(false);
-      };
-
-      newUtterance.onend = () => {
-        setIsSpeaking(false);
-        setIsPaused(false);
-      };
-
-      setUtterance(newUtterance);
-      window.speechSynthesis.speak(newUtterance);
+  const handleRead = () => {
+    if (!article.summary || !voice) return;
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
     }
+
+    const utterance = new SpeechSynthesisUtterance(article.summary);
+    utterance.voice = voice;
+    utterance.volume = volume;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setIsPaused(false);
+    };
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setIsPaused(false);
+    };
+
+    utteranceRef.current = utterance;
+    window.speechSynthesis.speak(utterance);
   };
 
   const handlePause = () => {
@@ -97,9 +99,12 @@ const Demo = () => {
     setIsPaused(false);
   };
 
+  const handleVolumeChange = (e) => {
+    setVolume(parseFloat(e.target.value));
+  };
+
   return (
     <section className="mt-16 w-full max-w-xl">
-      {/* Search */}
       <div className="flex flex-col w-full gap-2">
         <form className="relative flex justify-center items-center" onSubmit={handleSubmit}>
           <img src={linkIcon} alt="link-icon" className="absolute left-0 my-2 ml-3 w-5" />
@@ -108,26 +113,21 @@ const Demo = () => {
             placeholder="Paste the article link"
             value={article.url}
             onChange={(e) => setArticle({ ...article, url: e.target.value })}
-            onKeyDown={handleKeyDown}
             required
             className="url_input peer"
           />
-          <button
-            type="submit"
-            className="submit_btn peer-focus:border-gray-700 peer-focus:text-gray-700"
-          >
+          <button type="submit" className="submit_btn">
             <p>↵</p>
           </button>
         </form>
 
-        {/* History */}
         <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
           {allArticles.slice().reverse().map((item, index) => (
-            <div key={`link-${index}`} onClick={() => setArticle(item)} className="link_card">
+            <div key={index} onClick={() => setArticle(item)} className="link_card">
               <div className="copy_btn" onClick={() => handleCopy(item.url)}>
                 <img
                   src={copied === item.url ? tick : copy}
-                  alt={copied === item.url ? "tick_icon" : "copy_icon"}
+                  alt="copy-icon"
                   className="w-[40%] h-[40%] object-contain"
                 />
               </div>
@@ -139,13 +139,12 @@ const Demo = () => {
         </div>
       </div>
 
-      {/* Result */}
       <div className="my-10 max-w-full flex flex-col justify-center items-center gap-4">
         {isFetching ? (
           <img src={loader} alt="loader" className="w-20 h-20 object-contain" />
         ) : error ? (
           <p className="font-inter font-bold text-black text-center">
-            Well, that wasn't supposed to happen...
+            Something went wrong...
             <br />
             <span className="font-satoshi font-normal text-gray-700">
               {error?.data?.error}
@@ -159,53 +158,52 @@ const Demo = () => {
                   Article <span className="blue_gradient">Summary</span>
                 </h2>
                 <div className="summary_box">
-                  <p className="font-inter font-medium text-sm text-gray-700">
-                    {article.summary}
-                  </p>
+                  <p className="font-inter font-medium text-sm text-gray-700">{article.summary}</p>
                 </div>
               </div>
 
-              {/* Buttons */}
               <div className="flex flex-wrap gap-3 justify-center">
-                <button
-                  onClick={handleDownloadPDF}
-                  className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"
-                >
+                <button onClick={handleDownloadPDF} className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700">
                   📄 Download as PDF
                 </button>
 
                 {!isSpeaking && (
-                  <button
-                    onClick={handleReadAloud}
-                    className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"
-                  >
-                    Read Summery
+                  <button onClick={handleRead} className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700">
+                    🔊 Read Aloud
                   </button>
                 )}
+
                 {isSpeaking && !isPaused && (
-                  <button
-                    onClick={handlePause}
-                    className="bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600 transition"
-                  >
-                    Pause
+                  <button onClick={handlePause} className="bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600">
+                    ⏸️ Pause
                   </button>
                 )}
+
                 {isPaused && (
-                  <button
-                    onClick={handleResume}
-                    className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition"
-                  >
-                    Resume
+                  <button onClick={handleResume} className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600">
+                    ▶️ Resume
                   </button>
                 )}
+
                 {isSpeaking && (
-                  <button
-                    onClick={handleStop}
-                    className="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition"
-                  >
-                    Stop
+                  <button onClick={handleStop} className="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700">
+                    ⛔ Stop
                   </button>
                 )}
+              </div>
+
+              <div className="mt-4 w-full">
+                <label htmlFor="volume" className="text-gray-700">🔈 Volume: {Math.round(volume * 100)}%</label>
+                <input
+                  id="volume"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={volume}
+                  onChange={handleVolumeChange}
+                  className="w-full mt-2"
+                />
               </div>
             </>
           )
