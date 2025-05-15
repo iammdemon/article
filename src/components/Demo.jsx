@@ -173,77 +173,52 @@ const Demo = () => {
           </p>
         ) : (
           article.summary && (
-            <>
-              <div className="flex flex-col gap-3">
-                <h2 className="font-satoshi font-bold text-gray-600 text-xl">
-                  Article <span className="blue_gradient">Summary</span>
-                </h2>
-                <div className="summary_box">
-                  <p className="font-inter font-medium text-sm text-gray-700">{article.summary}</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-3 justify-center">
+            <div className="flex flex-col gap-3">
+              <h2 className="font-satoshi text-xl font-bold text-gray-600">Article Summary</h2>
+              <p className="font-inter text-sm text-gray-700">{article.summary}</p>
+              <div className="flex justify-between items-center w-full flex-wrap gap-4">
                 <button
                   onClick={handleDownloadPDF}
-                  className="bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700"
+                  className="bg-green-600 text-white py-2 px-4 rounded-lg"
                 >
-                  📄 Download as PDF
+                  Download PDF
                 </button>
-
-                {!isSpeaking && (
-                  <button
-                    onClick={handleRead}
-                    className="bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700"
-                  >
-                    🔊 Read Summary
-                  </button>
-                )}
-
-                {isSpeaking && !isPaused && (
-                  <button
-                    onClick={handlePause}
-                    className="bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600"
-                  >
-                    ⏸️ Pause
-                  </button>
-                )}
-
-                {isPaused && (
-                  <button
-                    onClick={handleResume}
-                    className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600"
-                  >
-                    ▶️ Resume
-                  </button>
-                )}
-
-                {isSpeaking && (
-                  <button
-                    onClick={handleStop}
-                    className="bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700"
-                  >
-                    ⛔ Stop
-                  </button>
-                )}
+                <div className="flex gap-2 flex-wrap">
+                  {!isSpeaking && !isPaused && (
+                    <button
+                      onClick={handleRead}
+                      className="bg-blue-600 text-white py-2 px-4 rounded-lg"
+                    >
+                      Read
+                    </button>
+                  )}
+                  {isSpeaking && !isPaused && (
+                    <button
+                      onClick={handlePause}
+                      className="bg-yellow-600 text-white py-2 px-4 rounded-lg"
+                    >
+                      Pause
+                    </button>
+                  )}
+                  {isPaused && (
+                    <button
+                      onClick={handleResume}
+                      className="bg-orange-600 text-white py-2 px-4 rounded-lg"
+                    >
+                      Resume
+                    </button>
+                  )}
+                  {(isSpeaking || isPaused) && (
+                    <button
+                      onClick={handleStop}
+                      className="bg-red-600 text-white py-2 px-4 rounded-lg"
+                    >
+                      Stop
+                    </button>
+                  )}
+                </div>
               </div>
-
-              <div className="mt-4 w-full">
-                <label htmlFor="volume" className="text-gray-700">
-                  🔈 Volume: {Math.round(volume * 100)}%
-                </label>
-                <input
-                  id="volume"
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={volume}
-                  onChange={handleVolumeChange}
-                  className="w-full mt-2"
-                />
-              </div>
-            </>
+            </div>
           )
         )}
       </div>

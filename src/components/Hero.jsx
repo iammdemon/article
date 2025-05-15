@@ -20,12 +20,12 @@ const Hero = () => {
       </nav>
 
       <h1 className='head_text'>
-        Summarize Articles with <br className='max-md:hidden' />
+        Summarize Research Paper with <br className='max-md:hidden' />
         <span className='orange_gradient '>SUMZ</span>
       </h1>
       <h2 className='desc'>
-        Simplify your reading with SUMZ, an open-source article summarizer
-        that transforms lengthy articles into clear and concise summaries. Also You can make it text to speech and download as PDF.
+        Simplify your reading with SUMZ, an open-source Research Paper summarizer
+        that transforms lengthy Paper into clear and concise summaries. Also You can make it text to speech and download as PDF.
       </h2>
     </header>
   );
